@@ -2,27 +2,26 @@ pipeline {
     agent any
 
     environment {
-        SERVER_REGION = 'us-east-1'
-        BUILD_ENV = 'development'
+        BRANCH_TYPE = "${env.BRANCH_NAME == 'ec2-development' ? 'development' :
+                       env.BRANCH_NAME == 'ec2-staging' ? 'staging' :
+                       env.BRANCH_NAME == 'main' ? 'production' : 'other'}"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Prepare') {
             steps {
-                checkout scm
-                echo "Checked out bootcamp scripts from Git"
+                echo "Branch: ${env.BRANCH_NAME}"
+                echo "Branch Type: ${env.BRANCH_TYPE}"
             }
         }
 
-        stage('Script Validation') {
+        stage('Validate Scripts') {
             steps {
-                echo "Validating scripts..."
                 sh '''
                     cd scripts
-                    echo "=== Script Validation ==="
+                    echo "=== Script Validation for ${BRANCH_TYPE} ==="
                     for script in *.sh; do
                         if [ -f "$script" ]; then
-                            echo "Checking syntax: $script"
                             bash -n "$script" && echo "OK: $script" || echo "ERROR: $script"
                         fi
                     done
@@ -32,36 +31,47 @@ pipeline {
 
         stage('Test Scripts') {
             steps {
-                echo "Testing bootcamp scripts..."
                 sh '''
                     cd scripts
-                    echo "=== Testing Scripts ==="
                     chmod +x *.sh
-
-                    if [ -f "system-info.sh" ]; then
-                        echo "Testing system info script..."
-                        ./system-info.sh
-                    fi
-
-                    if [ -f "health-check.sh" ]; then
-                        echo "Testing health check script..."
-                        ./health-check.sh
-                    fi
+                    echo "=== Running scripts on ${BRANCH_TYPE} ==="
+                    ./system-info.sh
+                    ./health-check.sh
                 '''
+            }
+        }
+
+        stage('Deploy to Development') {
+            when {
+                branch 'ec2-development'
+            }
+            steps {
+                echo "Deploying to development environment"
+            }
+        }
+
+        stage('Deploy to Staging') {
+            when {
+                branch 'ec2-staging'
+            }
+            steps {
+                echo "Deploying to staging environment"
+            }
+        }
+
+        stage('Deploy to Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo "Deploying to production environment"
             }
         }
     }
 
     post {
         always {
-            echo "Bootcamp Pipeline completed"
-            archiveArtifacts artifacts: 'scripts/*.sh', allowEmptyArchive: true
-        }
-        success {
-            echo "Bootcamp Pipeline succeeded!"
-        }
-        failure {
-            echo "Bootcamp Pipeline failed!"
+            echo "Pipeline completed for branch: ${env.BRANCH_NAME}"
         }
     }
 }
