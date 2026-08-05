@@ -2,9 +2,7 @@ pipeline {
     agent any
 
     environment {
-        BRANCH_TYPE = "${env.BRANCH_NAME == 'ec2-development' ? 'development' :
-                       env.BRANCH_NAME == 'ec2-staging' ? 'staging' :
-                       env.BRANCH_NAME == 'main' ? 'production' : 'other'}"
+        BRANCH_TYPE = "${env.BRANCH_NAME == 'ec2-development' ? 'development' : env.BRANCH_NAME == 'ec2-staging' ? 'staging' : env.BRANCH_NAME == 'main' ? 'production' : 'other'}"
     }
 
     stages {
@@ -19,7 +17,7 @@ pipeline {
             steps {
                 sh '''
                     cd scripts
-                    echo "=== Script Validation for ${BRANCH_TYPE} ==="
+                    echo "=== Script Validation ==="
                     for script in *.sh; do
                         if [ -f "$script" ]; then
                             bash -n "$script" && echo "OK: $script" || echo "ERROR: $script"
@@ -34,7 +32,7 @@ pipeline {
                 sh '''
                     cd scripts
                     chmod +x *.sh
-                    echo "=== Running scripts on ${BRANCH_TYPE} ==="
+                    echo "=== Running scripts ==="
                     ./system-info.sh
                     ./health-check.sh
                 '''
